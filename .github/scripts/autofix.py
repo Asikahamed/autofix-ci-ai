@@ -1,32 +1,46 @@
+import os
 import sys
-from openai import OpenAI
+import requests
+from pathlib import Path
 
-log_path = sys.argv[1]
+log_file = sys.argv[1]
+log = Path(log_file).read_text()
 
-with open(log_path) as f:
-    logs = f.read()
+HF_TOKEN = os.environ["HF_TOKEN"]
 
-client = OpenAI()
+MODEL = "codellama/CodeLlama-7b-Instruct-hf"
 
 prompt = f"""
-You are a senior Python engineer.
+You are a CI autofix bot.
 
-CI failure logs:
-{logs}
+Given this pytest failure log, generate the MINIMAL safe code fix.
+Return ONLY the corrected Python code.
 
-Return ONLY the minimal safe code fix.
-No explanation.
+Pytest log:
+{log}
 """
 
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=[{"role": "user", "content": prompt}],
+response = requests.post(
+    f"https://api-inference.huggingface.co/models/{MODEL}",
+    headers={"Authorization": f"Bearer {HF_TOKEN}"},
+    json={"inputs": prompt, "parameters": {"max_new_tokens": 300}},
+    timeout=60,
 )
 
-fix = response.choices[0].message.content.strip()
+data = response.json()
 
-with open("app/calculator.py", "a") as f:
-    f.write("\n# AI FIX\n")
-    f.write(fix + "\n")
+if isinstance(data, list):
+    output = data[0]["generated_text"]
+else:
+    raise RuntimeError(f"HuggingFace error: {data}")
 
-print("Applied AI fix.")
+print("=== AI RESPONSE ===")
+print(output)
+
+# VERY SIMPLE PATCH STRATEGY (demo purpose)
+# overwrite calc.py if AI returned code block
+if "def " in output:
+    Path("calc.py").write_text(output)
+    print("calc.py updated by AI")
+else:
+    print("No valid fix detected")

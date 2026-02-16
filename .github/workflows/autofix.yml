@@ -40,9 +40,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate AI fix
+      - name: Generate AI fix (Hugging Face FREE)
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python .github/scripts/autofix.py pytest.log
 
       - name: Create Pull Request
