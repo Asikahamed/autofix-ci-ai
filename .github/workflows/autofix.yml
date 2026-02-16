@@ -88,8 +88,9 @@ jobs:
       - name: Auto approve PR
         uses: hmarr/auto-approve-action@v4
         with:
-          github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
-          pull-request-number: ${{ github.event.workflow_run.pull_requests[0].number }}
+          pull-request-number: ${{ steps.pr.outputs.pull-request-number }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
 
       # 1️⃣1️⃣ Merge the PR safely
       - name: Merge PR
