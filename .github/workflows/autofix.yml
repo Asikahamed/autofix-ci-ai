@@ -31,15 +31,28 @@ jobs:
       # 2️⃣ Create a dedicated autofix branch
       - name: Create Autofix Branch
         run: git checkout -b autofix-${{ github.run_id }}
+        
+      - name: Prepare logs folder
+        run: |
+          mkdir -p ./logs
+          rm -f ./logs/*
 
-      # 3️⃣ Download failure logs artifact from CI workflow
-      - name: Download failure logs via API
+      - name: Download failure logs
         run: |
           gh run download ${{ github.event.workflow_run.id }} \
-          -n failure-logs \
-          -D .
+            -n failure-logs \
+            -D ./logs
         env:
           GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
+
+      # # 3️⃣ Download failure logs artifact from CI workflow
+      # - name: Download failure logs via API
+      #   run: |
+      #     gh run download ${{ github.event.workflow_run.id }} \
+      #     -n failure-logs \
+      #     -D .
+      #   env:
+      #     GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
 
 
       # 4️⃣ Setup Python environment
