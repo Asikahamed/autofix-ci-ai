@@ -83,9 +83,19 @@ jobs:
           base: ${{ github.event.workflow_run.head_branch }}
           title: "AI Autofix: Resolve CI Failure"
           body: "Automated minimal fix generated from CI logs."
+          commit-message: "AI autofix for CI failure"
+          delete-branch: true  # Clean up branch after merge
 
-      # 🔟 Auto-approve the PR using explicit PR number
+      # 🔍 Debug: Check if PR was created
+      - name: Debug PR Output
+        run: |
+          echo "PR Number: ${{ steps.pr.outputs.pull-request-number }}"
+          echo "PR URL: ${{ steps.pr.outputs.pull-request-url }}"
+          echo "PR Operation: ${{ steps.pr.outputs.pull-request-operation }}"
+
+      # 🔟 Auto-approve the PR (only if created)
       - name: Auto approve PR
+        if: steps.pr.outputs.pull-request-number != ''
         uses: hmarr/auto-approve-action@v4
         with:
           pull-request-number: ${{ steps.pr.outputs.pull-request-number }}
