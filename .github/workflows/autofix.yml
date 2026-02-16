@@ -99,7 +99,7 @@ jobs:
             - Run ID: `${{ github.run_id }}`
             
             **Changes:**
-            Pattern-based autofix detected and corrected the bug in the code.
+            The AI analyzed the CI logs and applied minimal fixes to resolve the failures.
             
             Please review the changes before merging.
           commit-message: "🤖 Autofix: Apply AI-generated fix"
