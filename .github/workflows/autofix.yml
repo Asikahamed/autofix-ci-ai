@@ -1,6 +1,5 @@
 name: AI Autofix
 
-# Triggered after CI workflow completes
 on:
   workflow_run:
     workflows: ["CI"]
@@ -13,14 +12,13 @@ permissions:
 
 jobs:
   autofix:
-    # Run only if CI failed and not already on an autofix branch
     if: |
       github.event.workflow_run.conclusion == 'failure' &&
       !contains(github.event.workflow_run.head_branch, 'autofix')
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo at the head commit of CI run
+      # 1️⃣ Checkout at the failed commit (DON'T create branch yet)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -28,17 +26,13 @@ jobs:
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
           fetch-depth: 0
 
-      # 2️⃣ Create a dedicated autofix branch
-      - name: Create Autofix Branch
-        run: git checkout -b autofix-${{ github.run_id }}
-
-      # 3️⃣ Prepare logs folder
+      # 2️⃣ Prepare logs folder
       - name: Prepare logs folder
         run: |
           mkdir -p ./logs
           rm -f ./logs/*
 
-      # 4️⃣ Download the CI log artifact
+      # 3️⃣ Download CI logs
       - name: Download CI logs
         run: |
           gh run download ${{ github.event.workflow_run.id }} \
@@ -47,17 +41,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
 
-      # 5️⃣ Setup Python
+      # 4️⃣ Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 6️⃣ Install project dependencies
+      # 5️⃣ Install dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 7️⃣ Run AI autofix script
+      # 6️⃣ Run autofix script
       - name: Generate AI fix
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -65,20 +59,23 @@ jobs:
           python .github/scripts/autofix.py ./logs/ci.log
         continue-on-error: true
 
-      # 8️⃣ Check if any changes were made
+      # 7️⃣ Check for changes
       - name: Check for changes
         id: changes
         run: |
+          # Remove backup files from being committed
+          rm -f **/*.backup
+          
           if [[ -n $(git status --porcelain) ]]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "✅ Autofix made changes"
+            echo "✅ Changes detected:"
             git status --short
           else
             echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "⚠️ No changes made by autofix"
+            echo "⚠️ No changes to commit"
           fi
 
-      # 9️⃣ Create PR (this handles commit + push automatically)
+      # 8️⃣ Create Pull Request (handles branch creation, commit, push)
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         id: pr
@@ -99,22 +96,30 @@ jobs:
             - Run ID: `${{ github.run_id }}`
             
             **Changes:**
-            The AI analyzed the CI logs and applied minimal fixes to resolve the failures.
+            Pattern-based autofix detected and corrected the failing test.
             
-            Please review the changes before merging.
+            ### Files Modified:
+            - `app/calc.py` - Fixed subtract function logic
+            
+            Please review before merging.
           commit-message: "🤖 Autofix: Apply AI-generated fix"
           committer: "CI Autofix Bot <ci-bot@users.noreply.github.com>"
           author: "CI Autofix Bot <ci-bot@users.noreply.github.com>"
+          delete-branch: true
 
-      # 🔍 Debug PR Output
+      # 9️⃣ Debug output
       - name: Debug PR Output
         if: always()
         run: |
+          echo "=========================================="
+          echo "PR Creation Result:"
+          echo "=========================================="
           echo "PR Number: ${{ steps.pr.outputs.pull-request-number }}"
           echo "PR URL: ${{ steps.pr.outputs.pull-request-url }}"
           echo "PR Operation: ${{ steps.pr.outputs.pull-request-operation }}"
+          echo "=========================================="
 
-      # 🔟 Auto-approve (only if PR created)
+      # 🔟 Auto-approve
       - name: Auto approve PR
         if: steps.pr.outputs.pull-request-number != ''
         uses: hmarr/auto-approve-action@v4
@@ -126,16 +131,24 @@ jobs:
       # 1️⃣1️⃣ Wait for approval to register
       - name: Wait for approval
         if: steps.pr.outputs.pull-request-number != ''
-        run: sleep 5
+        run: |
+          echo "Waiting for approval to register..."
+          sleep 5
 
       # 1️⃣2️⃣ Merge PR
       - name: Merge PR
         if: steps.pr.outputs.pull-request-number != ''
         run: |
-          echo "Merging PR #${{ steps.pr.outputs.pull-request-number }}"
-          gh pr merge ${{ steps.pr.outputs.pull-request-number }} \
-            --merge \
-            --delete-branch \
-            --admin || echo "⚠️ Merge failed"
+          PR_NUM="${{ steps.pr.outputs.pull-request-number }}"
+          echo "🔄 Attempting to merge PR #$PR_NUM"
+          
+          if gh pr merge "$PR_NUM" --merge --delete-branch --admin; then
+            echo "✅ PR #$PR_NUM merged successfully"
+          else
+            echo "⚠️ Failed to merge PR #$PR_NUM"
+            echo "Check PR status:"
+            gh pr view "$PR_NUM"
+            exit 1
+          fi
         env:
           GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
