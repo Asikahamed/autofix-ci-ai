@@ -7,6 +7,6 @@
 - Auto PR creation, approval, and merge using bots
 
 ## Secrets Required
-- OPENAI_API_KEY
+- HF_TOKEN
 - CREATOR_BOT_TOKEN
 - APPROVE_BOT_TOKEN
