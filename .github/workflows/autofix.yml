@@ -78,21 +78,7 @@ jobs:
             echo "⚠️ No changes made by autofix"
           fi
 
-      # 9️⃣ Commit AI-generated changes (only if changes exist)
-      - name: Commit AI patch
-        if: steps.changes.outputs.has_changes == 'true'
-        run: |
-          git config user.name "CI Autofix Bot"
-          git config user.email "ci-bot@users.noreply.github.com"
-          git add .
-          git commit -m "🤖 Autofix: Resolve CI failure
-          
-          Auto-generated fix for failed workflow run
-          Run ID: ${{ github.run_id }}
-          Branch: ${{ github.event.workflow_run.head_branch }}"
-          git push origin HEAD:autofix-${{ github.run_id }}
-
-      # 🔟 Create PR (only if changes exist)
+      # 9️⃣ Create PR (this handles commit + push automatically)
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         id: pr
@@ -116,8 +102,19 @@ jobs:
             The AI analyzed the CI logs and applied minimal fixes to resolve the failures.
             
             Please review the changes before merging.
+          commit-message: "🤖 Autofix: Apply AI-generated fix"
+          committer: "CI Autofix Bot <ci-bot@users.noreply.github.com>"
+          author: "CI Autofix Bot <ci-bot@users.noreply.github.com>"
 
-      # 1️⃣1️⃣ Auto-approve (only if PR created)
+      # 🔍 Debug PR Output
+      - name: Debug PR Output
+        if: always()
+        run: |
+          echo "PR Number: ${{ steps.pr.outputs.pull-request-number }}"
+          echo "PR URL: ${{ steps.pr.outputs.pull-request-url }}"
+          echo "PR Operation: ${{ steps.pr.outputs.pull-request-operation }}"
+
+      # 🔟 Auto-approve (only if PR created)
       - name: Auto approve PR
         if: steps.pr.outputs.pull-request-number != ''
         uses: hmarr/auto-approve-action@v4
@@ -126,16 +123,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
 
-      # 1️⃣2️⃣ Merge PR (only if PR created)
+      # 1️⃣1️⃣ Wait for approval to register
+      - name: Wait for approval
+        if: steps.pr.outputs.pull-request-number != ''
+        run: sleep 5
+
+      # 1️⃣2️⃣ Merge PR
       - name: Merge PR
         if: steps.pr.outputs.pull-request-number != ''
         run: |
-          echo "Waiting 5s for approval to register..."
-          sleep 5
-          
+          echo "Merging PR #${{ steps.pr.outputs.pull-request-number }}"
           gh pr merge ${{ steps.pr.outputs.pull-request-number }} \
             --merge \
             --delete-branch \
-            --admin || echo "⚠️ Merge failed (may need manual intervention)"
+            --admin || echo "⚠️ Merge failed"
         env:
           GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
