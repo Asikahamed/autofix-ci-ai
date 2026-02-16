@@ -25,6 +25,7 @@ jobs:
       - name: Run tests
         id: tests
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           pytest > pytest.log
         continue-on-error: true
 
