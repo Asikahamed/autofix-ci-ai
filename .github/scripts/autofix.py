@@ -20,8 +20,11 @@ Pytest log:
 {log}
 """
 
+# ✅ Use the new router endpoint
+ROUTER_URL = f"https://router.huggingface.co/models/{MODEL}"
+
 response = requests.post(
-    f"https://api-inference.huggingface.co/models/{MODEL}",
+    ROUTER_URL,
     headers={"Authorization": f"Bearer {HF_TOKEN}"},
     json={"inputs": prompt, "parameters": {"max_new_tokens": 300}},
     timeout=60,
@@ -37,8 +40,6 @@ else:
 print("=== AI RESPONSE ===")
 print(output)
 
-# VERY SIMPLE PATCH STRATEGY (demo purpose)
-# overwrite calc.py if AI returned code block
 if "def " in output:
     Path("calc.py").write_text(output)
     print("calc.py updated by AI")
