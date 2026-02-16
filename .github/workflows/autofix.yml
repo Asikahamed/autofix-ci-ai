@@ -12,14 +12,16 @@ permissions:
 
 jobs:
   autofix:
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      !contains(github.event.workflow_run.head_branch, 'autofix')
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
 
       - name: Download failure logs via API
@@ -29,7 +31,6 @@ jobs:
           -D .
         env:
           GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
-
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -50,7 +51,7 @@ jobs:
         with:
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
           branch: autofix-${{ github.run_id }}
-          base: main
+          base: ${{ github.event.workflow_run.head_branch }}
           title: "AI Autofix: Resolve CI Failure"
           body: "Automated minimal fix generated from CI logs."
 
