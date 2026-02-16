@@ -3,6 +3,10 @@ name: CI
 on:
   push:
     branches: ["**"]
+    paths:
+      - "app/**"        # Your application code
+      - "tests/**"      # Your test files
+      - "*.py"
 
 jobs:
   build-test:
