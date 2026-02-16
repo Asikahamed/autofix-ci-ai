@@ -34,7 +34,7 @@ jobs:
 
       # 3️⃣ Download failure logs artifact from CI workflow
       - name: Download failure logs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: failure-logs
           path: ./logs
