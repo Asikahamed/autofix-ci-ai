@@ -1,5 +1,6 @@
 name: AI Autofix
 
+# Triggered after CI workflow completes
 on:
   workflow_run:
     workflows: ["CI"]
@@ -12,39 +13,59 @@ permissions:
 
 jobs:
   autofix:
+    # Only run if CI failed and not already on an autofix branch
     if: |
       github.event.workflow_run.conclusion == 'failure' &&
       !contains(github.event.workflow_run.head_branch, 'autofix')
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout the PR branch, fetch full history
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_branch }}
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
+          fetch-depth: 0
 
-      - name: Download failure logs via API
-        run: |
-          gh run download ${{ github.event.workflow_run.id }} \
-          -n failure-logs \
-          -D .
-        env:
-          GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
+      # 2️⃣ Create a dedicated autofix branch
+      - name: Create Autofix Branch
+        run: git checkout -b autofix-${{ github.run_id }}
 
+      # 3️⃣ Download failure logs artifact from CI workflow
+      - name: Download failure logs
+        uses: actions/download-artifact@v3
+        with:
+          name: failure-logs
+          path: ./logs
+
+      # 4️⃣ Setup Python environment
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # 5️⃣ Install project dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate AI fix (Hugging Face FREE)
+      # 6️⃣ Run AI autofix script with Hugging Face
+      - name: Generate AI fix (Hugging Face)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python .github/scripts/autofix.py pytest.log
+        run: |
+          python .github/scripts/autofix.py ./logs/result.log
 
+      # 7️⃣ Commit and push any AI-generated changes
+      - name: Commit AI patch
+        run: |
+          git config user.name "CI Autofix Bot"
+          git config user.email "ci-bot@example.com"
+          git add .
+          git diff --cached --quiet || git commit -m "Autofix: Apply AI suggested patch"
+          git push origin HEAD:autofix-${{ github.run_id }}
+
+      # 8️⃣ Create Pull Request for the autofix
       - name: Create Pull Request
         id: pr
         uses: peter-evans/create-pull-request@v6
@@ -55,15 +76,15 @@ jobs:
           title: "AI Autofix: Resolve CI Failure"
           body: "Automated minimal fix generated from CI logs."
 
+      # 9️⃣ Auto-approve the PR
       - name: Auto approve PR
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
           pull-request-number: ${{ steps.pr.outputs.pull-request-number }}
 
+      # 🔟 Merge the PR safely
       - name: Merge PR
         run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin
         env:
           GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
-
-
