@@ -45,16 +45,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
 
-      # # 3️⃣ Download failure logs artifact from CI workflow
-      # - name: Download failure logs via API
-      #   run: |
-      #     gh run download ${{ github.event.workflow_run.id }} \
-      #     -n failure-logs \
-      #     -D .
-      #   env:
-      #     GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
-
-
       # 4️⃣ Setup Python environment
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -70,7 +60,7 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python .github/scripts/autofix.py ./logs/result.log
+          run: python .github/scripts/autofix.py ./logs/pytest.log
 
       # 7️⃣ Commit and push any AI-generated changes
       - name: Commit AI patch
