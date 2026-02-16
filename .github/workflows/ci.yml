@@ -25,18 +25,19 @@ jobs:
         id: tests
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest > pytest.log || true
-          test -f pytest.log || echo "pytest crashed before output" > pytest.log
+          pytest > pytest.log 2>&1
+          echo "exit_code=$?" >> $GITHUB_OUTPUT
         continue-on-error: true
 
 
       - name: Upload logs
-        if: steps.tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: failure-logs
           path: pytest.log
 
+
       - name: Fail job if tests failed
-        if: steps.tests.outcome == 'failure'
+        if: steps.tests.outputs.exit_code != '0'
         run: exit 1
+
