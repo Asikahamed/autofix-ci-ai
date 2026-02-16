@@ -5,80 +5,100 @@ from pathlib import Path
 import ast
 import re
 
-# --- Read CI log artifact
+# --- Read the unified CI log
+if len(sys.argv) < 2:
+    print("Usage: python autofix.py <ci_log_file>")
+    sys.exit(1)
+
 log_file = sys.argv[1]
+if not Path(log_file).exists():
+    print(f"Log file does not exist: {log_file}")
+    sys.exit(1)
+
 log = Path(log_file).read_text()
 
-HF_TOKEN = os.environ["HF_TOKEN"]
+HF_TOKEN = os.environ.get("HF_TOKEN")
+if not HF_TOKEN:
+    print("HF_TOKEN not set in environment")
+    sys.exit(1)
+
 MODEL = "codellama/CodeLlama-7b-Instruct-hf"
+ROUTER_URL = f"https://router.huggingface.co/models/{MODEL}"
 
-# --- Extract Python files mentioned in log
-files_to_fix = set(re.findall(r'File "([^"]+\.py)"', log))
-if not files_to_fix:
-    # If no files detected, leave as None; AI output will be reviewed but no files overwritten
-    files_to_fix = None
-    print("No specific Python files detected in CI log. AI output will not overwrite any file automatically.")
-
-# --- Prepare prompt for AI
+# --- Build AI prompt for generic CI failure
 prompt = f"""
 You are a CI autofix bot.
 
-The following files have CI failures: {list(files_to_fix) if files_to_fix else 'Unknown'}.
+The CI workflow failed. The unified CI log is provided below:
 
-Given the unified CI log below, generate the MINIMAL safe code fix.
-- Only modify the affected files if they are known.
-- Do NOT change unrelated code.
-- Return ONLY the corrected Python code for the files mentioned.
-
-CI log:
 {log}
+
+Instructions:
+- Generate minimal safe fixes to resolve the CI failure.
+- This could include: fixing Python code, updating dependencies, correcting configs, or any other step needed to make CI pass.
+- Only modify files that the AI identifies as needing a change.
+- For Python files, ensure syntax is valid.
+- Return the fixed files in a format like:
+
+# File: path/to/file.py
+<file contents>
+
+Do NOT include unrelated files.
 """
 
-ROUTER_URL = f"https://router.huggingface.co/models/{MODEL}"
-
+# --- Call Hugging Face API
 def get_ai_fix():
-    """Call Hugging Face API to get AI-generated fix"""
     try:
+        print("Calling Hugging Face API...")
         response = requests.post(
             ROUTER_URL,
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
-            json={"inputs": prompt, "parameters": {"max_new_tokens": 300}},
-            timeout=60,
+            json={"inputs": prompt, "parameters": {"max_new_tokens": 500}},
+            timeout=120,
         )
-        if not response.text:
+        print("HF API status code:", response.status_code)
+        if not response.text.strip():
             print("Hugging Face returned empty response.")
             return None
 
-        data = response.json()
+        try:
+            data = response.json()
+        except Exception as e:
+            print("Error parsing HF JSON response:", e)
+            print("Raw response:", response.text)
+            return None
+
         if isinstance(data, list) and "generated_text" in data[0]:
             return data[0]["generated_text"]
         else:
-            print("Hugging Face returned unexpected data:", data)
+            print("Unexpected HF response:", data)
             return None
     except Exception as e:
         print("Error calling Hugging Face API:", e)
         return None
 
-def safe_write(file_path, code):
-    """Validate Python code before overwriting"""
+# --- Write AI output safely
+def safe_write(file_path, content):
+    path = Path(file_path)
     try:
-        ast.parse(code)
-        Path(file_path).write_text(code)
+        if file_path.endswith(".py"):
+            ast.parse(content)  # Validate Python syntax
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
         print(f"{file_path} updated safely by AI")
     except Exception as e:
-        print(f"AI output invalid Python for {file_path}: {e}")
+        print(f"Failed to write {file_path}: {e}")
 
-# --- Main logic
+# --- Main logic: parse AI output by file
 output = get_ai_fix()
 
 if output:
-    if files_to_fix:
-        # Only update files detected in CI log
-        for file_path in files_to_fix:
-            if file_path in output:
-                safe_write(file_path, output)
-    else:
-        # No files detected: do not overwrite anything
-        print("No files detected in log; AI output not written automatically.")
+    # Detect AI-reported files with format "# File: path/to/file"
+    file_blocks = re.split(r'# File:\s*([^\n]+)', output)[1:]  # split keeps filenames and content
+    # iterate in pairs (filename, content)
+    for i in range(0, len(file_blocks), 2):
+        file_path = file_blocks[i].strip()
+        content = file_blocks[i + 1].lstrip('\n')
+        safe_write(file_path, content)
 else:
     print("No valid fix detected or API failed")
