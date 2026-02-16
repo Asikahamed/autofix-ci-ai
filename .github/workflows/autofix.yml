@@ -5,6 +5,10 @@ on:
     workflows: ["CI"]
     types: [completed]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   autofix:
     if: ${{ github.event.workflow_run.conclusion == 'failure' }}
@@ -14,13 +18,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main
-          token: ${{ secrets.BOT_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.CREATOR_BOT_TOKEN }}
 
       - name: Download failure logs
         uses: actions/download-artifact@v4
         with:
           name: failure-logs
+          run-id: ${{ github.event.workflow_run.id }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -35,26 +40,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python .github/scripts/autofix.py pytest.log
 
-      - name: Commit & push fix branch
-        run: |
-          git config user.name "autofix-bot"
-          git config user.email "autofix@bot.com"
-
-          BRANCH="autofix-${{ github.run_id }}"
-          git checkout -b $BRANCH
-
-          git add .
-          git commit -m "AI autofix: resolve CI failure" || echo "No changes"
-          git push origin $BRANCH
-
-          echo "branch=$BRANCH" >> $GITHUB_ENV
-
       - name: Create Pull Request
         id: pr
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
-          branch: ${{ env.branch }}
+          branch: autofix-${{ github.run_id }}
           base: main
           title: "AI Autofix: Resolve CI Failure"
           body: "Automated minimal fix generated from CI logs."
@@ -65,6 +56,6 @@ jobs:
           github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
 
       - name: Merge PR
-        run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch
+        run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin
         env:
-          GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
+          GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
