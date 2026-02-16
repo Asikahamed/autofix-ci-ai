@@ -1,0 +1,3 @@
+# Autofix artifacts
+logs/
+*.backup
