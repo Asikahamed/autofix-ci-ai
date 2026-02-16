@@ -1,0 +1,70 @@
+name: AI Autofix
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  autofix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.BOT_TOKEN }}
+
+      - name: Download failure logs
+        uses: actions/download-artifact@v4
+        with:
+          name: failure-logs
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate AI fix
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python .github/scripts/autofix.py pytest.log
+
+      - name: Commit & push fix branch
+        run: |
+          git config user.name "autofix-bot"
+          git config user.email "autofix@bot.com"
+
+          BRANCH="autofix-${{ github.run_id }}"
+          git checkout -b $BRANCH
+
+          git add .
+          git commit -m "AI autofix: resolve CI failure" || echo "No changes"
+          git push origin $BRANCH
+
+          echo "branch=$BRANCH" >> $GITHUB_ENV
+
+      - name: Create Pull Request
+        id: pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.CREATOR_BOT_TOKEN }}
+          branch: ${{ env.branch }}
+          base: main
+          title: "AI Autofix: Resolve CI Failure"
+          body: "Automated minimal fix generated from CI logs."
+
+      - name: Auto approve PR
+        uses: hmarr/auto-approve-action@v4
+        with:
+          github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
+
+      - name: Merge PR
+        run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
