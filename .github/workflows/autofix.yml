@@ -59,6 +59,7 @@ jobs:
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
+          pull-request-number: ${{ steps.pr.outputs.pull-request-number }}
 
       - name: Merge PR
         run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin
