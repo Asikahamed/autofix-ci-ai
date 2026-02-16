@@ -1,4 +1,4 @@
-import pytest
+# import pytest
 from app.calc import add, subtract
 
 
