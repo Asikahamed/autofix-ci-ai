@@ -18,8 +18,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: main
-          token: ${{ github.token }}
+          ref: ${{ github.event.workflow_run.head_branch }}
+          token: ${{ secrets.CREATOR_BOT_TOKEN }}
 
       - name: Download failure logs
         uses: actions/download-artifact@v4
