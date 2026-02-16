@@ -2,42 +2,75 @@ name: CI
 
 on:
   push:
-    branches: [ "**" ]
-    
+    branches: ["**"]
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout the repo
       - name: Checkout
         uses: actions/checkout@v4
 
+      # 2️⃣ Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install deps
-        run: pip install -r requirements.txt
+      # 3️⃣ Prepare central log file
+      - name: Prepare log file
+        run: |
+          mkdir -p ./logs
+          LOG_FILE=./logs/ci.log
+          echo "CI Run started at $(date)" > $LOG_FILE
+          echo "-------------------------" >> $LOG_FILE
+        shell: bash
 
+      # 4️⃣ Install dependencies, capture errors
+      - name: Install dependencies
+        run: |
+          LOG_FILE=./logs/ci.log
+          echo "=== Installing Dependencies ===" >> $LOG_FILE
+          pip install -r requirements.txt >> $LOG_FILE 2>&1 || echo "Dependencies failed" >> $LOG_FILE
+        continue-on-error: true
+        shell: bash
+
+      # 5️⃣ Run linting (example)
+      - name: Run lint
+        run: |
+          LOG_FILE=./logs/ci.log
+          echo "=== Linting ===" >> $LOG_FILE
+          flake8 . >> $LOG_FILE 2>&1 || echo "Linting failed" >> $LOG_FILE
+        continue-on-error: true
+        shell: bash
+
+      # 6️⃣ Run tests
       - name: Run tests
         id: tests
         run: |
+          LOG_FILE=./logs/ci.log
+          echo "=== Running Tests ===" >> $LOG_FILE
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest > pytest.log
+          pytest >> $LOG_FILE 2>&1 || echo "Tests failed" >> $LOG_FILE
         continue-on-error: true
+        shell: bash
 
-
-      - name: Upload logs
+      # 7️⃣ Upload central CI log
+      - name: Upload CI logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: failure-logs
-          path: pytest.log
+          path: ./logs/ci.log
 
-
-      - name: Fail job if tests failed
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
-
-
+      # 8️⃣ Fail job if any step failed
+      - name: Fail job if errors occurred
+        if: always()
+        run: |
+          if grep -q "failed" ./logs/ci.log; then
+            echo "Errors detected in CI steps. Marking job as failed."
+            exit 1
+          fi
+        shell: bash

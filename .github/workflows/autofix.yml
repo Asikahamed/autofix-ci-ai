@@ -13,31 +13,33 @@ permissions:
 
 jobs:
   autofix:
-    # Only run if CI failed and not already on an autofix branch
+    # Run only if CI failed and not already on an autofix branch
     if: |
       github.event.workflow_run.conclusion == 'failure' &&
       !contains(github.event.workflow_run.head_branch, 'autofix')
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the PR branch, fetch full history
+      # 1️⃣ Checkout the repo at the head commit of CI run
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_branch }}
+          ref: ${{ github.event.workflow_run.head_sha }}
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
           fetch-depth: 0
 
       # 2️⃣ Create a dedicated autofix branch
       - name: Create Autofix Branch
         run: git checkout -b autofix-${{ github.run_id }}
-        
+
+      # 3️⃣ Prepare logs folder
       - name: Prepare logs folder
         run: |
           mkdir -p ./logs
           rm -f ./logs/*
 
-      - name: Download failure logs
+      # 4️⃣ Download the CI log artifact
+      - name: Download CI logs
         run: |
           gh run download ${{ github.event.workflow_run.id }} \
             -n failure-logs \
@@ -45,24 +47,24 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
 
-      # 4️⃣ Setup Python environment
+      # 5️⃣ Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      # 5️⃣ Install project dependencies
+      # 6️⃣ Install project dependencies
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 6️⃣ Run AI autofix script with Hugging Face
+      # 7️⃣ Run AI autofix script with unified CI log
       - name: Generate AI fix (Hugging Face)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          python .github/scripts/autofix.py ./logs/pytest.log
+          python .github/scripts/autofix.py ./logs/ci.log
 
-      # 7️⃣ Commit and push any AI-generated changes
+      # 8️⃣ Commit AI-generated changes (if any)
       - name: Commit AI patch
         run: |
           git config user.name "CI Autofix Bot"
@@ -71,7 +73,7 @@ jobs:
           git diff --cached --quiet || git commit -m "Autofix: Apply AI suggested patch"
           git push origin HEAD:autofix-${{ github.run_id }}
 
-      # 8️⃣ Create Pull Request for the autofix
+      # 9️⃣ Create Pull Request for the autofix
       - name: Create Pull Request
         id: pr
         uses: peter-evans/create-pull-request@v6
@@ -82,14 +84,14 @@ jobs:
           title: "AI Autofix: Resolve CI Failure"
           body: "Automated minimal fix generated from CI logs."
 
-      # 9️⃣ Auto-approve the PR
+      # 🔟 Auto-approve the PR using explicit PR number
       - name: Auto approve PR
         uses: hmarr/auto-approve-action@v4
         with:
           github-token: ${{ secrets.APPROVE_BOT_TOKEN }}
           pull-request-number: ${{ github.event.workflow_run.pull_requests[0].number }}
 
-      # 🔟 Merge the PR safely
+      # 1️⃣1️⃣ Merge the PR safely
       - name: Merge PR
         run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin
         env:
