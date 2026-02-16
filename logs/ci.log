@@ -1,4 +1,4 @@
-CI Run started at Mon Feb 16 20:35:51 UTC 2026
+CI Run started at Mon Feb 16 20:47:20 UTC 2026
 -------------------------
 === Installing Dependencies ===
 Collecting pytest (from -r requirements.txt (line 1))
@@ -52,7 +52,7 @@ Collecting urllib3<3,>=1.21.1 (from requests->-r requirements.txt (line 3))
 Downloading pytest-9.0.2-py3-none-any.whl (374 kB)
 Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
 Downloading openai-2.21.0-py3-none-any.whl (1.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 134.3 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.1/1.1 MB 111.4 MB/s  0:00:00
 Downloading anyio-4.12.1-py3-none-any.whl (113 kB)
 Downloading distro-1.9.0-py3-none-any.whl (20 kB)
 Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
@@ -60,7 +60,7 @@ Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
 Downloading jiter-0.13.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (362 kB)
 Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
 Downloading pydantic_core-2.41.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 152.8 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 113.8 MB/s  0:00:00
 Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
 Downloading requests-2.32.5-py3-none-any.whl (64 kB)
 Downloading charset_normalizer-3.4.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (151 kB)
@@ -72,7 +72,7 @@ Downloading h11-0.16.0-py3-none-any.whl (37 kB)
 Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
 Downloading packaging-26.0-py3-none-any.whl (74 kB)
 Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 160.6 MB/s  0:00:00
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 115.3 MB/s  0:00:00
 Downloading tqdm-4.67.3-py3-none-any.whl (78 kB)
 Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
 Downloading sniffio-1.3.1-py3-none-any.whl (10 kB)
@@ -80,7 +80,7 @@ Installing collected packages: urllib3, typing-extensions, tqdm, sniffio, pygmen
 
 Successfully installed annotated-types-0.7.0 anyio-4.12.1 certifi-2026.1.4 charset_normalizer-3.4.4 distro-1.9.0 h11-0.16.0 httpcore-1.0.9 httpx-0.28.1 idna-3.11 iniconfig-2.3.0 jiter-0.13.0 openai-2.21.0 packaging-26.0 pluggy-1.6.0 pydantic-2.12.5 pydantic-core-2.41.5 pygments-2.19.2 pytest-9.0.2 requests-2.32.5 sniffio-1.3.1 tqdm-4.67.3 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3
 === Linting ===
-/home/runner/work/_temp/5009d90a-7a98-40b7-8caf-e9dca310464e.sh: line 3: flake8: command not found
+/home/runner/work/_temp/7cff0396-15e9-45b4-9b1a-225bbd44f71b.sh: line 3: flake8: command not found
 Linting failed
 === Running Tests ===
 ============================= test session starts ==============================
@@ -89,19 +89,6 @@ rootdir: /home/runner/work/autofix-ci-ai/autofix-ci-ai
 plugins: anyio-4.12.1
 collected 2 items
 
-tests/test_calc.py .F                                                    [100%]
+tests/test_calc.py ..                                                    [100%]
 
-=================================== FAILURES ===================================
-________________________________ test_subtract _________________________________
-
-    def test_subtract():
->       assert subtract(10, 5) == 5
-E       assert 15 == 5
-E        +  where 15 = subtract(10, 5)
-
-tests/test_calc.py:10: AssertionError
-=========================== short test summary info ============================
-FAILED tests/test_calc.py::test_subtract - assert 15 == 5
- +  where 15 = subtract(10, 5)
-========================= 1 failed, 1 passed in 0.03s ==========================
-Tests failed
+============================== 2 passed in 0.01s ===============================
