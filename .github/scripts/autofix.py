@@ -21,7 +21,8 @@ MODELS = {
 
 # Use DeepSeek Coder (best free option for code fixes)
 MODEL = MODELS["deepseek"]
-API_URL = f"https://api-inference.huggingface.co/models/{MODEL}"
+# API_URL = f"https://api-inference.huggingface.co/models/{MODEL}"
+API_URL = f"https://router.huggingface.co/models/{MODEL}/v1/chat/completions"
 
 MAX_RETRIES = 3
 RETRY_DELAY = 20  # seconds (for model loading)
