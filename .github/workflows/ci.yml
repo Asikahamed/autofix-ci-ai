@@ -25,7 +25,7 @@ jobs:
         id: tests
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          pytest 2>&1 | tee pytest.log
+          pytest > pytest.log
         continue-on-error: true
 
       - name: Upload logs
