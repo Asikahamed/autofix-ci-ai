@@ -102,8 +102,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
 
-      # 1️⃣1️⃣ Merge the PR safely
       - name: Merge PR
-        run: gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin
+        if: steps.pr.outputs.pull-request-number != ''
+        run: |
+          if [ -n "${{ steps.pr.outputs.pull-request-number }}" ]; then
+            gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin || echo "⚠️ PR merge failed or already merged"
+          else
+            echo "⚠️ No PR number found, skipping merge"
+          fi
         env:
           GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
