@@ -57,43 +57,67 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 7️⃣ Run AI autofix script with unified CI log
-      - name: Generate AI fix (Hugging Face)
+      # 7️⃣ Run AI autofix script
+      - name: Generate AI fix
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python .github/scripts/autofix.py ./logs/ci.log
+        continue-on-error: true
 
-      # 8️⃣ Commit AI-generated changes (if any)
+      # 8️⃣ Check if any changes were made
+      - name: Check for changes
+        id: changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Autofix made changes"
+            git status --short
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No changes made by autofix"
+          fi
+
+      # 9️⃣ Commit AI-generated changes (only if changes exist)
       - name: Commit AI patch
+        if: steps.changes.outputs.has_changes == 'true'
         run: |
           git config user.name "CI Autofix Bot"
-          git config user.email "ci-bot@example.com"
+          git config user.email "ci-bot@users.noreply.github.com"
           git add .
-          git diff --cached --quiet || git commit -m "Autofix: Apply AI suggested patch"
+          git commit -m "🤖 Autofix: Resolve CI failure
+          
+          Auto-generated fix for failed workflow run
+          Run ID: ${{ github.run_id }}
+          Branch: ${{ github.event.workflow_run.head_branch }}"
           git push origin HEAD:autofix-${{ github.run_id }}
 
-      # 9️⃣ Create Pull Request for the autofix
+      # 🔟 Create PR (only if changes exist)
       - name: Create Pull Request
+        if: steps.changes.outputs.has_changes == 'true'
         id: pr
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.CREATOR_BOT_TOKEN }}
           branch: autofix-${{ github.run_id }}
           base: ${{ github.event.workflow_run.head_branch }}
-          title: "AI Autofix: Resolve CI Failure"
-          body: "Automated minimal fix generated from CI logs."
-          commit-message: "AI autofix for CI failure"
-          delete-branch: true  # Clean up branch after merge
+          title: "🤖 AI Autofix: Resolve CI Failure"
+          body: |
+            ## 🤖 Automated Fix
+            
+            This PR contains automated fixes for the failed CI run.
+            
+            **Details:**
+            - Failed workflow: ${{ github.event.workflow_run.html_url }}
+            - Source branch: `${{ github.event.workflow_run.head_branch }}`
+            - Run ID: `${{ github.run_id }}`
+            
+            **Changes:**
+            The AI analyzed the CI logs and applied minimal fixes to resolve the failures.
+            
+            Please review the changes before merging.
 
-      # 🔍 Debug: Check if PR was created
-      - name: Debug PR Output
-        run: |
-          echo "PR Number: ${{ steps.pr.outputs.pull-request-number }}"
-          echo "PR URL: ${{ steps.pr.outputs.pull-request-url }}"
-          echo "PR Operation: ${{ steps.pr.outputs.pull-request-operation }}"
-
-      # 🔟 Auto-approve the PR (only if created)
+      # 1️⃣1️⃣ Auto-approve (only if PR created)
       - name: Auto approve PR
         if: steps.pr.outputs.pull-request-number != ''
         uses: hmarr/auto-approve-action@v4
@@ -102,13 +126,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
 
+      # 1️⃣2️⃣ Merge PR (only if PR created)
       - name: Merge PR
         if: steps.pr.outputs.pull-request-number != ''
         run: |
-          if [ -n "${{ steps.pr.outputs.pull-request-number }}" ]; then
-            gh pr merge ${{ steps.pr.outputs.pull-request-number }} --merge --delete-branch --admin || echo "⚠️ PR merge failed or already merged"
-          else
-            echo "⚠️ No PR number found, skipping merge"
-          fi
+          echo "Waiting 5s for approval to register..."
+          sleep 5
+          
+          gh pr merge ${{ steps.pr.outputs.pull-request-number }} \
+            --merge \
+            --delete-branch \
+            --admin || echo "⚠️ Merge failed (may need manual intervention)"
         env:
           GH_TOKEN: ${{ secrets.APPROVE_BOT_TOKEN }}
