@@ -33,11 +33,14 @@ jobs:
         run: git checkout -b autofix-${{ github.run_id }}
 
       # 3️⃣ Download failure logs artifact from CI workflow
-      - name: Download failure logs
-        uses: actions/download-artifact@v4
-        with:
-          name: failure-logs
-          path: ./logs
+      - name: Download failure logs via API
+        run: |
+          gh run download ${{ github.event.workflow_run.id }} \
+          -n failure-logs \
+          -D .
+        env:
+          GH_TOKEN: ${{ secrets.CREATOR_BOT_TOKEN }}
+
 
       # 4️⃣ Setup Python environment
       - name: Setup Python
